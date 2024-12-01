@@ -5,6 +5,8 @@
 
 int main()
 {
+	shared::timer();
+
 	// PARSE INPUT FILE //
 
 	std::vector<std::string> list;
@@ -57,4 +59,6 @@ int main()
 
 	// Answer!
 	std::cout << total << std::endl;
+
+	shared::timer(true);
 }
