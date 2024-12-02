@@ -19,15 +19,29 @@ namespace shared
 
 	const int parseInputFile(std::vector<std::string>& list)
 	{
-		std::ifstream inf{ "../input.txt" };
+		std::string strInput;
+
+		std::ifstream inf{ "../input - Copy.txt" };
 
 		if (!inf)
 		{
-			std::cerr << "Couldn't find file.\n";
-			return 1;
-		}
+			std::ifstream inf2{ "../input.txt" };
 
-		std::string strInput;
+			if (!inf2)
+			{
+				std::cerr << "Couldn't find input file.\n";
+				return 2; // Bad - couldn't find any file.
+			}
+
+			while (inf2)
+			{
+				std::getline(inf2, strInput);
+				list.push_back(strInput);
+			}
+			inf2.close();
+			
+			return 0; // Good - using original file.
+		}
 
 		while (inf)
 		{
@@ -36,7 +50,7 @@ namespace shared
 		}
 		inf.close();
 
-		return 0;
+		return 1; // Warning - using a test file.
 	}
 
 

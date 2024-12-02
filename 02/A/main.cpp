@@ -1,10 +1,10 @@
 #include "shared.h"
 
-#include <numeric> 
-
 
 int main()
 {
+	shared::timer();
+
 	// PARSE INPUT FILE //
 
 	std::vector<std::string> list;
@@ -15,46 +15,75 @@ int main()
 	}
 
 	// SOLVE PUZZLE //
-		
-	std::vector<unsigned int> left_values;
-	std::vector<unsigned int> right_values;
 
-	// Build list of left and right values.
+	int total{ 0 };
+
+	// Get levels per report.
 	for (const auto& line : list)
-	{		
-		if (line.empty()) continue;
-
-		std::vector<unsigned int> values;
-
-		shared::getSpaceDelimitedValuesFromLine<unsigned int>(line, values);
-
-		left_values.push_back(values[0]);
-		right_values.push_back(values[1]);
-	}
-
-	// Sort both ascending.
-	std::sort(left_values.begin(), left_values.end());
-	std::sort(right_values.begin(), right_values.end());
-
-	std::vector<unsigned int> distances;
-
-	// Compare and get distances.
-	// Avoiding abs() because unsigned int values may underflow if minuend is less than subtrahend.
-	for (int i{ 0 }; i < left_values.size(); ++i)
 	{
-		if (left_values[i] >= right_values[i])
+		if (line.empty()) continue;
+		
+		std::vector<unsigned int> levels;
+		
+		shared::getSpaceDelimitedValuesFromLine<unsigned int>(line, levels);
+
+		// Check if descending or ascending.
+		int sort_order{ 0 };
+		enum
 		{
-			distances.push_back(left_values[i] - right_values[i]);
+			DES = -1,
+			ASC = 1
+		};
+
+		std::vector<unsigned int> levels_sorted = levels;
+
+		// ... Ascending check.
+		std::sort(levels_sorted.begin(), levels_sorted.end());
+		if (levels == levels_sorted) 
+		{
+			sort_order = ASC;
 		}
 		else
 		{
-			distances.push_back(right_values[i] - left_values[i]);
+			// ... Descending check.
+			std::sort(levels_sorted.begin(), levels_sorted.end(), std::greater());
+			if (levels == levels_sorted)
+			{
+				sort_order = DES;
+			}
 		}
-	}
 
-	// Sum up values.
-	auto total{ std::reduce(distances.begin(), distances.end()) };
+		// Not in any order, skip.
+		if (sort_order == 0) continue;
+		
+		// Confirm gradual changes.
+		bool is_gradual_change{ true };
+				
+		for (size_t i{ 0 }; i < levels.size() - 1; ++i)
+		{
+			size_t difference{ 0 };
+
+			if (sort_order == ASC)
+			{
+				difference = levels[i + 1] - levels[i];
+			}
+			else
+			{
+				difference = levels[i] - levels[i + 1];
+			}
+			
+			if (difference < 1 || difference > 3)
+			{
+				is_gradual_change = false;
+				break;
+			}
+		}
+
+		if (is_gradual_change) total += 1;
+	}
 
 	// Answer!
 	std::cout << total << std::endl;
+
+	shared::timer(true);
 }

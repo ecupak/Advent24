@@ -1,8 +1,6 @@
 #include "shared.h"
 
 
-
-
 int main()
 {
 	shared::timer();
@@ -17,10 +15,10 @@ int main()
 	}
 
 	// SOLVE PUZZLE //
-		
+
 	// Build list of left and right values.
 	for (const auto& line : list)
-	{		
+	{
 		if (line.empty()) continue;
 
 		std::vector<unsigned int> values;

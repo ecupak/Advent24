@@ -1,72 +1,110 @@
 #include "shared.h"
 
-#include <numeric> 
-#include <unordered_map>
 
+bool IsSafe(std::vector<unsigned int>& levels);
+bool CheckReport(std::vector<unsigned int>& report);
 
 int main()
 {
+	shared::timer();
+
 	// PARSE INPUT FILE //
 
 	std::vector<std::string> list;
 
-	if (shared::parseInputFile(list) == 1)
+	int parse_value{ 2 };
+	if (parse_value = shared::parseInputFile(list); parse_value == 2)
 	{
-		return 1;
+		return 2;
 	}
 
 	// SOLVE PUZZLE //
 
-	std::vector<unsigned int> left_values;
-	std::vector<unsigned int> right_values;
+	int total{ 0 };
 
-	// Build list of left and right values.
+	// Get levels per report.
 	for (const auto& line : list)
 	{
 		if (line.empty()) continue;
 
-		std::vector<unsigned int> values;
+		std::vector<unsigned int> report;
 
-		shared::getSpaceDelimitedValuesFromLine<unsigned int>(line, values);
+		shared::getSpaceDelimitedValuesFromLine<unsigned int>(line, report);
 
-		left_values.push_back(values[0]);
-		right_values.push_back(values[1]);
-	}
-
-	// Sort both ascending.
-	std::sort(left_values.begin(), left_values.end());
-	std::sort(right_values.begin(), right_values.end());
-
-	// Find similarities.
-	unsigned int similarity_score{ 0 };
-
-	// ... only need to find values once per number.
-	std::unordered_map<unsigned int, unsigned int> lookup;
-
-	for (auto value : left_values)
-	{
-		if (auto iter{ lookup.find(value) }; iter != lookup.end())
+		// Check report - safe / unsafe?
+		if (bool is_safe{ CheckReport(report) })
 		{
-			similarity_score += lookup[value];
+			total += 1;
 		}
 		else
 		{
-			unsigned int score{ 0 };
+			std::reverse(report.begin(), report.end());
 
-			for (auto other_value : right_values)
-			{
-				if (value == other_value)
-				{
-					score += other_value;
-				}
-			}
-
-			lookup[value] = score;
-
-			similarity_score += score;
+			if (bool is_safe{ CheckReport(report) })
+				total += 1;
 		}
 	}
 
 	// Answer!
-	std::cout << similarity_score << std::endl;
+	std::cout << total << std::endl;
+
+	// Warn if using a test file and not real input.
+	if (parse_value == 1)
+		std::cout << "WARNING - USING TEST FILE" << std::endl;
+
+	shared::timer(true);
+}
+
+bool CheckReport(std::vector<unsigned int>& report)
+{
+	bool is_safe{ IsSafe(report) };
+
+	// Ascending check.
+	if (!is_safe)
+	{
+		// i = element to remove.
+		for (int i{ 0 }; i < report.size(); ++i)
+		{
+			std::vector<unsigned int> edited_report;
+
+			// k = index over levels.
+			for (int k{ 0 }; k < report.size(); ++k)
+			{
+				if (k == i) continue;
+
+				edited_report.push_back(report[k]);
+			}
+
+			if (is_safe = IsSafe(edited_report))
+			{
+				return is_safe;
+			}
+		}
+	}
+	else
+	{
+		return is_safe;
+	}
+
+	return is_safe;
+}
+
+bool IsSafe(std::vector<unsigned int>& report)
+{
+	for (int i{ 0 }; i < report.size() - 1; ++i)
+	{
+		if (report[i] >= report[i + 1])
+		{
+			return false;
+		}
+
+		unsigned int difference{ report[i + 1] - report[i] };
+
+		if (difference < 1 || difference > 3)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
