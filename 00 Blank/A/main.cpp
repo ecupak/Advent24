@@ -1,5 +1,7 @@
 #include "shared.h"
 
+#include <iostream>
+
 
 int main()
 {
@@ -8,27 +10,25 @@ int main()
 	// PARSE INPUT FILE //
 
 	std::vector<std::string> list;
-
-	if (shared::parseInputFile(list) == 1)
-	{
-		return 1;
-	}
+	shared::InputResult result{ shared::parseInputFile(list) };
+	if (result == shared::BAD) return 2;
 
 	// SOLVE PUZZLE //
 
-	// Build list of left and right values.
+	unsigned int total{ 0 };
+
+	// Evaluate lines in list.
 	for (const auto& line : list)
 	{
 		if (line.empty()) continue;
-
-		std::vector<unsigned int> values;
-
+	
 		//shared::getSpaceDelimitedValuesFromLine<unsigned int>(line, values);
 	}
 
-
 	// Answer!
-	//std::cout << total << std::endl;
+	if (result == shared::WARNING) std::cout << "USING TEST FILE!" << std::endl;
+	std::cout << total << std::endl;
+	if (result == shared::WARNING) std::cout << "USING TEST FILE!" << std::endl;
 
 	shared::timer(true);
 }
