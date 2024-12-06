@@ -21,7 +21,7 @@ int main()
 	for (const auto& line : list)
 	{
 		if (line.empty()) continue;
-	
+
 		//shared::getSpaceDelimitedValuesFromLine<unsigned int>(line, values);
 	}
 
