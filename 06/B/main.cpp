@@ -1,4 +1,5 @@
 #define SKIP_VISUALIZE true
+#define USE_INPUT_FILE false
 
 #include "shared.h"
 
@@ -64,6 +65,9 @@ int main()
 	int width{ x };
 	int height{ y };
 
+	std::vector<unsigned int> path_hashes;
+	size_t steps_taken{ 0 };
+
 	// Explore map.
 	{
 		shared::Cell cell{ start_cell };
@@ -77,7 +81,7 @@ int main()
 		{
 			// Mark current cell as visited.
 			visited.insert(cell_hash);
-
+			
 			shared::Cell next_cell{ cell + direction };
 			next_cell_hash = makeHash(next_cell.x, next_cell.y);
 
@@ -87,6 +91,7 @@ int main()
 				// Move to next cell.
 				cell = next_cell;
 				cell_hash = makeHash(cell.x, cell.y);
+				path_hashes.push_back(cell_hash);
 			}
 
 			// See if obstacle.
@@ -112,35 +117,38 @@ int main()
 		};
 	}
 
-
 	// Now place an obstacle on the visited path and count how many loops are created.
 	{
-		std::unordered_set<unsigned int> loops;
-		auto iter2{ visited.begin() };
-		++iter2; // Skip starting location.
-
-		for (; iter2 != visited.end(); ++iter2)
+		// All coords visited.
+		unsigned int start_hash{ makeHash(start_cell.x, start_cell.y) };
+		for (auto v_iter{ visited.begin() }; v_iter != visited.end(); ++v_iter)
 		{
-			if (*iter2 == makeHash(start_cell.x, start_cell.y)) 
+			// Don't place obstacle on start cell.
+			if (*v_iter == start_hash) continue;
+
+			// Add temp obstacle on map along path.
+			bool placed_obstacle{ false };
+			unsigned int temp_obstacle_hash{ *v_iter };
+
+			if (obstacles.find(temp_obstacle_hash) == obstacles.end())
 			{
-				continue;
+				placed_obstacle = true;
+				spaces.erase(temp_obstacle_hash);
+				obstacles.insert(temp_obstacle_hash);
 			}
 
-			unsigned int hash_value{ *iter2 };
-			bool loop_found{ false };
-
 			// Reset values.
-			loops.clear();
+			// ... Tracks if loop was found.
+			bool loop_found{ false };
+			std::unordered_set<unsigned int> loops;
+
+			// ... Path position and direction.
 			shared::Cell cell{ start_cell };
 			unsigned int next_cell_hash{ 0 };
 			int dir{ shared::Directions::UpIdx };
 			shared::Cell direction{ shared::directions[dir] };
 
-			// Modify lists with temp new obstacle.
-			obstacles.insert(hash_value);
-			spaces.erase(hash_value);
-
-			// Normal check as before with loop detection.
+			// Normal check as before with loop detection and temp obstacle placement.
 			while (true)
 			{
 				shared::Cell next_cell{ cell + direction };
@@ -165,10 +173,10 @@ int main()
 						// Add to set using direction as hash element.
 						// If set already has it, this is a loop. 
 						// That is, if you hit the same obstacle twice from the same direction, you are in a loop.
-						if (!loops.insert(makeHash(dir, *iter)).second)
+						if (!loops.insert(makeHash(dir, maybe_next_cell_hash)).second)
 						{
 							loop_found = true;
-							printf("%d with %d\n", *iter, hash_value);
+							//printf("Repeat visit at: %05d | Dir: %d | Obstacle at: %d\n", maybe_next_cell_hash, dir, temp_obstacle_hash);
 							break;
 						}
 
@@ -186,26 +194,33 @@ int main()
 						// Test new direction.
 						maybe_next_cell = cell + direction;
 						maybe_next_cell_hash = makeHash(maybe_next_cell.x, maybe_next_cell.y);
-					}
+
+					} // Looped direction check for obstacles.
 
 					if (loop_found)
 					{
 						total += 1;
 						break;
 					}
-				}
+
+				} // Obstacle set check.
 
 				// Neither - off map!
 				else
 				{
 					break;
 				}
-			};
 
-			// Restore lists.
-			obstacles.erase(hash_value);
-			spaces.insert(hash_value);
-		}
+			} // Path while-loop
+
+			// Restore lists if temp obstacle was placed.
+			if (placed_obstacle)
+			{
+				spaces.insert(temp_obstacle_hash);
+				obstacles.erase(temp_obstacle_hash);
+			}
+
+		} // Obstacle iteration for-loop
 	}
 
 	// Answer!

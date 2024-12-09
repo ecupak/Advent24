@@ -32,9 +32,10 @@ namespace shared
 	/*
 		DECLARATIONS
 	*/
-	InputResult parseInputFile(std::vector<std::string>& list);
-	bool parseInputFromFile(const char* filename, std::vector<std::string>& list);
+	InputResult parseInputFile(std::vector<std::string>& list, bool as_lines);
+	bool parseInputFromFile(const char* filename, std::vector<std::string>& list, bool as_lines);
 	void fillListWithInput(std::ifstream& input, std::vector<std::string>& list);
+	void fillListWithLines(std::ifstream& input, std::vector<std::string>& list);
 	void timer(bool stop = false);
 
 	template <typename T>
@@ -43,30 +44,38 @@ namespace shared
 	/*
 		DEFINITIONS
 	*/
-	InputResult parseInputFile(std::vector<std::string>& list)
-	{
-		// Check for test file first.
-		if (parseInputFromFile("../input - Copy.txt", list))
-		{
-			return WARNING;
-		}
 
-		// Check for real file.
-		if (parseInputFromFile("../input.txt", list))
+	// 'as_lines' true will copy every input line as-is. If false, will copy individual values separated by space/linebreak.
+	InputResult parseInputFile(std::vector<std::string>& list, bool as_lines)
+	{
+#ifndef USE_INPUT_FILE
+#define USE_INPUT_FILE true
+#endif
+
+#if USE_INPUT_FILE
+		if (parseInputFromFile("../input.txt", list, as_lines))
 		{
 			return GOOD;
 		}
-
+#else
+		if (parseInputFromFile("../input - Copy.txt", list, as_lines))
+		{
+			return WARNING;
+		}
+#endif
 		std::cerr << "Couldn't find input file.\n";
 		return BAD;
 	}
 
 
-	bool parseInputFromFile(const char* filename, std::vector<std::string>& list)
+	bool parseInputFromFile(const char* filename, std::vector<std::string>& list, bool as_lines)
 	{
 		if (std::ifstream input{ filename }; input)
 		{
-			fillListWithInput(input, list);
+			if (as_lines)
+				fillListWithLines(input, list);
+			else
+				fillListWithInput(input, list);
 			return true;
 		}
 
@@ -83,6 +92,17 @@ namespace shared
 			list.push_back(strInput);
 		}
 		input.close();
+	}
+
+
+	void fillListWithLines(std::ifstream& input, std::vector<std::string>& list)
+	{
+		while (!input.eof())
+		{
+			std::string value;
+			std::getline(input, value, '\n');
+			list.push_back(value);
+		}
 	}
 
 
@@ -145,6 +165,11 @@ namespace shared
 			return { this->x + rhs.x, this->y + rhs.y };
 		}
 
+		Cell operator-(const Cell& rhs)
+		{
+			return { this->x - rhs.x, this->y - rhs.y };
+		}
+
 		Cell& operator+=(const Cell& rhs)
 		{
 			this->x += rhs.x;
@@ -157,6 +182,19 @@ namespace shared
 		{
 			return (x == other.x && y == other.y);
 		}
+
+		std::string toString() const 
+		{
+			return std::to_string(x) + ", " + std::to_string(y);
+		}
+
+		struct HashFunction
+		{
+			size_t operator()(const Cell& cell) const
+			{
+				return std::hash<std::string>()(cell.toString());
+			}
+		};
 	};
 
 
@@ -175,7 +213,19 @@ namespace shared
 		DownIdx,
 		LeftIdx,
 		Count,
-};
+	};
+
+
+	unsigned int makeHash(int x, int y)
+	{
+		return x + (y << 16);
+	}
+
+	void unhashMe(unsigned int hash, int& x, int& y)
+	{
+		x = hash & 0x0000FFFF;
+		y = hash >> 16;
+	}
 
 }// namespace shared
 
@@ -200,7 +250,7 @@ class Challenge
 public:
 	int LoadFile()
 	{
-		shared::InputResult result{ shared::parseInputFile(m_list) };
+		shared::InputResult result{ shared::parseInputFile(m_list, true) };
 
 		try
 		{
@@ -246,10 +296,12 @@ public:
 };
 
 
-int run(Challenge& challenge, bool use_puzzle_size = false)
+int run(Challenge& challenge, unsigned int screen_width = config::screen_width, unsigned int screen_height = config::screen_height)
 {
-	shared::timer();
-	
+#ifndef VISUAL_MODE
+#define VISUAL_MODE 1
+#endif
+
 	// Initialize challenge.
 	int result{ challenge.LoadFile() };
 
@@ -263,10 +315,7 @@ int run(Challenge& challenge, bool use_puzzle_size = false)
 	}
 
 	// Create window.
-	unsigned int screen_width{ use_puzzle_size ? challenge.m_width * challenge.m_font_size : config::screen_width };
-	unsigned int screen_height{ use_puzzle_size ? challenge.m_height * challenge.m_font_size : config::screen_height };
 	sf::RenderWindow window(sf::VideoMode(screen_width, screen_height), "Challenge Begin!");
-	//window.setKeyRepeatEnabled(false);
 	challenge.m_window = &window;
 
 	// Loop variables.
@@ -280,7 +329,7 @@ int run(Challenge& challenge, bool use_puzzle_size = false)
 		sf::Clock clock;
 		float delta_time{ 0.0f };
 
-#if SKIP_VISUALIZE
+#if VISUAL_MODE == 2
 		while (!challenge.Tick(0.0f, true));
 #else
 		while (window.isOpen())
@@ -370,3 +419,51 @@ int run(Challenge& challenge, bool use_puzzle_size = false)
 }
 
 } // namespace vizit
+
+
+// [Credit] rathbhupendra // https://www.geeksforgeeks.org/print-all-permutations-with-repetition-of-characters/
+namespace permutation
+{
+	/* The main function that recursively
+	prints all repeated permutations of
+	the given string. It uses data[] to store all
+	permutations one by one */
+	// [Private method]
+	void createCombinations(std::vector<std::string>& results, std::string& given_str, char* data, uint64_t last, int index)
+	{
+		// One by one fix all characters at the given index
+		// and recursively for the subsequent indexes. 
+		for (int i{ 0 }; i < given_str.size(); ++i)
+		{
+			// Fix the n-th character at index and if this is not the last 
+			// index then recursively call for higher indexes.
+			data[index] = given_str[i];
+
+			// Recursively call for higher indexes.
+			if (index == last)
+				results.push_back(data);
+			else
+				createCombinations(results, given_str, data, last, index + 1);
+		}
+	}
+
+	/* This function sorts input string,
+	allocate memory for data (needed
+	for allLexicographicRecur()) and
+	calls allLexicographicRecur() for
+	printing all permutations */
+	void get(std::vector<std::string>& results, std::string& given_str, size_t length = 0)
+	{
+		uint64_t combo_length{ length > 0 ? length : static_cast<uint64_t>(given_str.size() - 1u) };
+
+		// Create a temp array to build combination in. 
+		char* data{ new char[combo_length + 1] };
+		std::fill_n(data, combo_length, '.');
+		data[combo_length] = '\0';
+
+		// Now print all permutations 
+		createCombinations(results, given_str, data, combo_length - 1, 0);
+
+		delete[] data;
+	}
+}

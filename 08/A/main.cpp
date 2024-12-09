@@ -2,13 +2,22 @@
 #define VISUAL_MODE 0 
 
 // False will use the test file "input - Copy.txt"
-#define USE_INPUT_FILE false
+#define USE_INPUT_FILE true
 
 
 #include "shared.h"
 
 #include <iostream>
 #include <vector>
+
+#include <unordered_map>
+#include <unordered_set>
+
+
+bool IsInBounds(size_t width, size_t height, const shared::Cell& cell)
+{
+	return cell.x >= 0 && cell.x < width && cell.y >= 0 && cell.y < height;
+}
 
 
 int main()
@@ -26,11 +35,62 @@ int main()
 
 	unsigned int total{ 0 };
 
-	// std::vector<int> values;
+	std::unordered_map<char, std::vector<shared::Cell>> antenna_locations;
 
+	// When a non-'.' is found, add location to map of similar dots.
+	size_t y{ 0 };
+	size_t x{ 0 };
+	
 	for (auto& line : list)
 	{
-		// shared::getSpaceDelimitedValuesFromLine<int>(line, values);
+		if (line.empty()) continue;
+
+		x = 0;
+
+		for (auto letter : line)
+		{
+			if (letter != '.')
+			{
+				antenna_locations[letter].emplace_back(x, y);
+			}
+
+			++x;
+		}
+
+		++y;
+	}
+
+	size_t width{ x };
+	size_t height{ y };
+
+	// Check each type of frequency and create antinodes.
+	std::unordered_set<shared::Cell, shared::Cell::HashFunction> anti_nodes;
+
+	for (auto& [antenna_id, locations] : antenna_locations)
+	{
+		for (int i{ 0 }; i < locations.size(); ++i)
+		{
+			shared::Cell& source{ locations[i] };
+
+			for (int k{ 0 }; k < locations.size(); ++k)
+			{
+				// Don't compare against self.
+				if (i == k) continue;
+
+				shared::Cell anti_node_offset{ source - locations[k] };
+
+				anti_nodes.insert(source + anti_node_offset);
+			}
+		}
+	}
+
+	// Count only the ones on the map.
+	for (auto& cell : anti_nodes)
+	{
+		if (IsInBounds(width, height, cell))
+		{
+			total += 1;
+		}
 	}
 
 	// Answer!
@@ -39,7 +99,7 @@ int main()
 	if (result == shared::WARNING) std::cout << "USING TEST FILE!" << std::endl;
 #else
 	// Visualize the puzzle using an extended class and SFML loop.
-
+	
 	// PUZZLE DATA //
 
 	class Puzzle : public vizit::Challenge
@@ -73,13 +133,13 @@ int main()
 		}
 
 		// Return true when puzzle is solved. Will pause process.
-		bool Tick(float, bool can_advance) override
-		{
+		bool Tick(float, bool can_advance) override 
+		{		
 			return false;
 		}
 
 		// std::vector<int> values;
-
+		
 	};
 
 	Puzzle puzzle{};
