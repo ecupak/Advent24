@@ -148,6 +148,7 @@ namespace shared
 		}
 	}
 
+
 	struct Cell
 	{
 		Cell() = default;
@@ -266,7 +267,7 @@ public:
 	}
 
 	virtual void Init() { 
-		std::string font_path{ shared::path + "LemonMilk/LemonMilkRegular-X3XE2.otf" };
+		std::string font_path{ shared::path + "Bittypix/Bittypix_Monospace.otf" };
 		if (!m_font.loadFromFile(font_path))
 		{
 			printf("Could not load font from \"%s\"", font_path.c_str());
@@ -296,7 +297,7 @@ public:
 };
 
 
-int run(Challenge& challenge, unsigned int screen_width = config::screen_width, unsigned int screen_height = config::screen_height)
+int run(Challenge& challenge, bool use_puzzle_size)
 {
 #ifndef VISUAL_MODE
 #define VISUAL_MODE 1
@@ -315,6 +316,8 @@ int run(Challenge& challenge, unsigned int screen_width = config::screen_width, 
 	}
 
 	// Create window.
+	unsigned int screen_width{ static_cast<unsigned int>(use_puzzle_size ? challenge.m_width * challenge.m_font_size : config::screen_width) };
+	unsigned int screen_height{ static_cast<unsigned int>(use_puzzle_size ? challenge.m_height * challenge.m_font_size : config::screen_height) };
 	sf::RenderWindow window(sf::VideoMode(screen_width, screen_height), "Challenge Begin!");
 	challenge.m_window = &window;
 
