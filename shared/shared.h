@@ -164,12 +164,12 @@ namespace shared
 		int x{ 0 };
 		int y{ 0 };
 
-		Cell operator+(const Cell& rhs)
+		Cell operator+(const Cell& rhs) const
 		{
 			return { this->x + rhs.x, this->y + rhs.y };
 		}
 
-		Cell operator-(const Cell& rhs)
+		Cell operator-(const Cell& rhs) const
 		{
 			return { this->x - rhs.x, this->y - rhs.y };
 		}
