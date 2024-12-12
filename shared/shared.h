@@ -294,7 +294,7 @@ public:
 		m_text.setFillColor(sf::Color::White); 
 	}
 
-	virtual bool Tick(float dt, bool can_advance) { return true; }
+	virtual bool Tick(float dt, bool can_advance, bool go_fast = false) { return true; }
 
 	// Rendering context.
 	sf::RenderWindow* m_window;
@@ -339,7 +339,11 @@ int run(Challenge& challenge, bool use_puzzle_size)
 	challenge.m_window = &window;
 
 	// Loop variables.
+#if VISUAL_MODE == 2
+	bool skip_wait{ true };
+#else
 	bool skip_wait{ false };
+#endif
 	bool can_advance{ false };
 	bool is_running{ true };
 	bool is_done{ false };
@@ -350,7 +354,7 @@ int run(Challenge& challenge, bool use_puzzle_size)
 		float delta_time{ 0.0f };
 
 #if VISUAL_MODE == 2
-		while (!challenge.Tick(0.0f, true));
+		while (!challenge.Tick(0.0f, true, true));
 #else
 		while (window.isOpen())
 		{
