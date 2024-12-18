@@ -19,11 +19,11 @@
 			<AdditionalLibraryDirectories>$(SFML)/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
 			<AdditionalDependencies>sfml-graphics-d.lib;sfml-window-d.lib;sfml-system-d.lib;%(AdditionalDependencies)</AdditionalDependencies>
 		</Link>
-		<PostBuildEvent>
+		<PreBuildEvent>
 			<Command>
 				robocopy "$(SFML)/bin/" "$(OutDir)/" /E
 				IF %ERRORLEVEL% LEQ 6 SET ERRORLEVEL = 0
 			</Command>
-		</PostBuildEvent>
+		</PreBuildEvent>		
 	</ItemDefinitionGroup>
 </Project>

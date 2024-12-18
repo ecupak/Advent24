@@ -13,6 +13,9 @@
 // Time checking.
 #include <chrono>
 
+// Priority queue.
+#include <queue>
+
 // For SFML when using rendering loop.
 #include "SFML/Graphics.hpp"
 #include <SFML/System/Clock.hpp>
@@ -20,7 +23,7 @@
 
 namespace shared
 {
-	std::string path{ "../../shared/" };
+	static std::string path{ "../../shared/" };
 
 	enum InputResult
 	{
@@ -29,24 +32,49 @@ namespace shared
 		BAD = 2,
 	};
 
-	/*
-		DECLARATIONS
-	*/
-	InputResult parseInputFile(std::vector<std::string>& list, bool as_lines);
-	bool parseInputFromFile(const char* filename, std::vector<std::string>& list, bool as_lines);
-	void fillListWithInput(std::ifstream& input, std::vector<std::string>& list);
-	void fillListWithLines(std::ifstream& input, std::vector<std::string>& list);
-	void timer(bool stop = false);
+	static void fillListWithInput(std::ifstream& input, std::vector<std::string>& list)
+	{
+		std::string strInput;
 
-	template <typename T>
-	void getSpaceDelimitedValuesFromLine(const std::string& line, std::vector<T>& values);
+		while (input >> strInput)
+		{
+			list.push_back(strInput);
+		}
+		input.close();
+	}
 
-	/*
-		DEFINITIONS
-	*/
+
+	static void fillListWithLines(std::ifstream& input, std::vector<std::string>& list)
+	{
+		while (!input.eof())
+		{
+			std::string value;
+			std::getline(input, value, '\n');
+
+			if (value.empty()) continue;
+
+			list.push_back(value);
+		}
+	}
+
+
+	static bool parseInputFromFile(const char* filename, std::vector<std::string>& list, bool as_lines)
+	{
+		if (std::ifstream input{ filename }; input)
+		{
+			if (as_lines)
+				fillListWithLines(input, list);
+			else
+				fillListWithInput(input, list);
+			return true;
+		}
+
+		return false;
+	}
+
 
 	// 'as_lines' true will copy every input line as-is. If false, will copy individual values separated by space/linebreak.
-	InputResult parseInputFile(std::vector<std::string>& list, bool as_lines)
+	static InputResult parseInputFile(std::vector<std::string>& list, bool as_lines)
 	{
 #ifndef USE_INPUT_FILE
 #define USE_INPUT_FILE true
@@ -67,50 +95,9 @@ namespace shared
 		return BAD;
 	}
 
-
-	bool parseInputFromFile(const char* filename, std::vector<std::string>& list, bool as_lines)
-	{
-		if (std::ifstream input{ filename }; input)
-		{
-			if (as_lines)
-				fillListWithLines(input, list);
-			else
-				fillListWithInput(input, list);
-			return true;
-		}
-
-		return false;
-	}
-
-
-	void fillListWithInput(std::ifstream& input, std::vector<std::string>& list)
-	{
-		std::string strInput;
-
-		while (input >> strInput)
-		{
-			list.push_back(strInput);
-		}
-		input.close();
-	}
-
-
-	void fillListWithLines(std::ifstream& input, std::vector<std::string>& list)
-	{
-		while (!input.eof())
-		{
-			std::string value;
-			std::getline(input, value, '\n');
-
-			if (value.empty()) continue;
-
-			list.push_back(value);
-		}
-	}
-
-
+		
 	// [Credit] https://stackoverflow.com/questions/22387586/measuring-execution-time-of-a-function-in-c/22387757#22387757 + Alex
-	void timer(bool stop)
+	static void timer(bool stop = false)
 	{
 		using std::chrono::high_resolution_clock;
 		using std::chrono::duration_cast;
@@ -135,9 +122,8 @@ namespace shared
 		}
 	}
 
-
 	template <typename T>
-	void getSpaceDelimitedValuesFromLine(const std::string& line, std::vector<T>& values)
+	static void getSpaceDelimitedValuesFromLine(const std::string& line, std::vector<T>& values)
 	{
 		std::istringstream full_line{ line };
 
@@ -151,18 +137,18 @@ namespace shared
 		}
 	}
 
-
+	template <typename T>
 	struct Cell
 	{
 		Cell() = default;
 
-		Cell(int _x, int _y)
-			: x{ _x }
-			, y{ _y }
+		Cell(T _x, T _y)
+			: x{ static_cast<T>(_x) }
+			, y{ static_cast<T>(_y) }
 		{	}
 
-		int x{ 0 };
-		int y{ 0 };
+		T x{ 0 };
+		T y{ 0 };
 
 		Cell operator+(const Cell& rhs) const
 		{
@@ -187,6 +173,11 @@ namespace shared
 			return (x == other.x && y == other.y);
 		}
 
+		bool operator!=(const Cell& other) const
+		{
+			return (x != other.x || y != other.y);
+		}
+
 		std::string toString() const 
 		{
 			return std::to_string(x) + ", " + std::to_string(y);
@@ -199,10 +190,25 @@ namespace shared
 				return std::hash<std::string>()(cell.toString());
 			}
 		};
+
+		friend Cell<T> operator*(const Cell& c, const float f);
 	};
 
+	template <typename T>
+	Cell<T> operator*(const Cell<T>& c, const T f)
+	{
+		return { c.x * f, c.y * f };
+	}
 
-	Cell directions[4]{
+	template <typename T>
+	Cell<T> operator*(const T f, const Cell<T>& c)
+	{
+		return { c.x * f, c.y * f };
+	}
+
+	template <typename T>
+	Cell<T> directions[4]{
+		// X   Y
 		{  0, -1 },
 		{  1,  0 },
 		{  0,  1 },
@@ -220,12 +226,12 @@ namespace shared
 	};
 
 
-	unsigned int makeHash(int x, int y)
+	static unsigned int makeHash(int x, int y)
 	{
 		return x + (y << 16);
 	}
 
-	void unhashMe(unsigned int hash, int& x, int& y)
+	static void unhashMe(unsigned int hash, int& x, int& y)
 	{
 		x = hash & 0x0000FFFF;
 		y = hash >> 16;
@@ -234,7 +240,7 @@ namespace shared
 
 	// [Credit] https://stackoverflow.com/questions/1489830/efficient-way-to-determine-number-of-digits-in-an-integer
 	template <class T>
-	int numDigits(T number)
+	static int numDigits(T number)
 	{
 		int digits = 0;
 		//if (number < 0) digits = 1; // remove this line if '-' counts as a digit
@@ -249,14 +255,14 @@ namespace shared
 
 
 namespace config {
-	const int screen_width{ 600 };
-	const int screen_height{ 480 };
+	static const int screen_width{ 600 };
+	static const int screen_height{ 480 };
 
-	const int target_fps{ 60 };
-	const float target_fps_as_delta_time{ 1.0f / target_fps };
+	static const int target_fps{ 60 };
+	static const float target_fps_as_delta_time{ 1.0f / target_fps };
 
-	const int minimum_fps{ 10 };
-	const float maximum_delta_time{ 1.0f / minimum_fps };
+	static const int minimum_fps{ 10 };
+	static const float maximum_delta_time{ 1.0f / minimum_fps };
 } // namespace config
 
 
@@ -266,9 +272,10 @@ namespace vizit
 class Challenge
 {
 public:
+	// Gets input file and loads as vector of strings into m_list.
 	int LoadFile()
 	{
-		shared::InputResult result{ shared::parseInputFile(m_list, true) };
+		shared::InputResult result{ shared::parseInputFile(m_list, m_load_as_line) };
 
 		try
 		{
@@ -283,6 +290,8 @@ public:
 		return result;
 	}
 
+	// Gets font to use and font size.
+	// Override font size in derived Init() and call super to apply.	
 	virtual void Init() { 
 		std::string font_path{ shared::path + "Bittypix/Bittypix_Monospace.otf" };
 		if (!m_font.loadFromFile(font_path))
@@ -291,17 +300,40 @@ public:
 		}
 		m_text.setFont(m_font);
 		m_text.setCharacterSize(m_font_size);
-		m_text.setFillColor(sf::Color::White); 
+		m_text.setFillColor(sf::Color::White); 		
 	}
 
-	virtual bool Tick(float dt, bool can_advance, bool go_fast = false) { return true; }
+	// Puzzle logic. Return true when completed/solved.
+	virtual bool Tick(float dt) { return true; }
+
+	// Rendering logic.
+	virtual void Render(bool is_done = false) {}
+
+	// Controls frequency/speed of Tick().
+	bool IsReady(float dt)
+	{
+		if ((m_elapsed_time += dt) >= m_anim_delay)
+		{
+			m_elapsed_time = 0.0f;
+			return true;
+		}
+
+		return false;
+	}
+
+	// Input loading. As line or separate all values.
+	bool m_load_as_line{ true };
+
+	// Animation speed.
+	float m_anim_delay{ 0.01f };
+	float m_elapsed_time{ 0.0f };
 
 	// Rendering context.
 	sf::RenderWindow* m_window;
 
 	// Input parsed as a string. Final answer.
 	std::vector<std::string> m_list;
-	unsigned int m_total{ 0 };
+	size_t m_total{ 0 };
 	
 	// # of letters per line and # of lines. Set during init, can be overwritten as needed.
 	int m_width{ 0 };
@@ -310,11 +342,11 @@ public:
 	// Render strings using this.
 	sf::Font m_font;
 	sf::Text m_text;
-	unsigned int m_font_size{ 24 };
+	int m_font_size{ 24 };
 };
 
 
-int run(Challenge& challenge, bool use_puzzle_size)
+static int run(Challenge& challenge, bool use_puzzle_size)
 {
 #ifndef VISUAL_MODE
 #define VISUAL_MODE 1
@@ -340,10 +372,9 @@ int run(Challenge& challenge, bool use_puzzle_size)
 
 	// Loop variables.
 #if VISUAL_MODE == 2
-	bool skip_wait{ true };
+	while (!challenge.Tick(0.0f));	
 #else
 	bool skip_wait{ false };
-#endif
 	bool can_advance{ false };
 	bool is_running{ true };
 	bool is_done{ false };
@@ -352,10 +383,8 @@ int run(Challenge& challenge, bool use_puzzle_size)
 	{
 		sf::Clock clock;
 		float delta_time{ 0.0f };
+		float elapsed_time{ 0.0f };
 
-#if VISUAL_MODE == 2
-		while (!challenge.Tick(0.0f, true, true));
-#else
 		while (window.isOpen())
 		{
 			// Only advance game when enough time has elapsed.
@@ -375,20 +404,28 @@ int run(Challenge& challenge, bool use_puzzle_size)
 
 				// Game tick.		
 				delta_time = fminf(config::maximum_delta_time, delta_time);
+				challenge.m_elapsed_time += delta_time;
 
-				if (challenge.Tick(delta_time, can_advance))
-				{
-					is_done = true;
+				// Do puzzle logic.
+				if (can_advance && (!skip_wait || challenge.IsReady(delta_time)))
+				{					
+					if (challenge.Tick(delta_time))
+					{
+						is_done = true;
 					
-					// Pause at end of execution.
-					skip_wait = false;
+						// If was advancing automatically, pause at end of execution.
+						skip_wait = false;
+					}
+
+					// Update title with new total.
+					std::string title{ "Total: " + std::to_string(challenge.m_total) };
+					window.setTitle(title);
 				}
 
-				// Update title with new total.
-				std::string title{ "Total: " + std::to_string(challenge.m_total) };
-				window.setTitle(title);
+				// Render puzzle.
+				challenge.Render(is_done);
 
-				// Reset advancement check. Auto-true when not waiting.
+				// Reset advancement check.
 				can_advance = skip_wait;
 
 				// Event handling.
@@ -429,8 +466,8 @@ int run(Challenge& challenge, bool use_puzzle_size)
 				delta_time = 0.0f;//-= config::target_fps_as_delta_time;
 			}
 		}
-#endif
 	}
+#endif
 
 	// Answer!
 	if (result == shared::WARNING) std::cout << "USING TEST FILE!" << std::endl;
@@ -453,7 +490,7 @@ namespace permutation
 	the given string. It uses data[] to store all
 	permutations one by one */
 	// [Private method]
-	void createCombinations(std::vector<std::string>& results, std::string& given_str, char* data, uint64_t last, int index)
+	static void createCombinations(std::vector<std::string>& results, std::string& given_str, char* data, uint64_t last, int index)
 	{
 		// One by one fix all characters at the given index
 		// and recursively for the subsequent indexes. 
@@ -476,7 +513,7 @@ namespace permutation
 	for allLexicographicRecur()) and
 	calls allLexicographicRecur() for
 	printing all permutations */
-	void get(std::vector<std::string>& results, std::string& given_str, size_t length = 0)
+	static void get(std::vector<std::string>& results, std::string& given_str, size_t length = 0)
 	{
 		uint64_t combo_length{ length > 0 ? length : static_cast<uint64_t>(given_str.size() - 1u) };
 
@@ -490,4 +527,284 @@ namespace permutation
 
 		delete[] data;
 	}
+}
+
+
+namespace container
+{
+	// Circular buffer. Once the end is reached, the next write operation will overwrite the element at index 0.
+	// The head is always advanced after a write operation. Reading data with operator[] starts at the head position.
+	// 
+	// The index given when reading data is an offset to the head. In effect, this always means operator[0] returns the oldest entry in the buffer.
+	// Negative indexing is supported. Thus operator[-1] will return the newest entry in the buffer.
+
+	template <typename T>
+	class RingBuffer
+	{
+	public:
+		RingBuffer(size_t max_size)
+			: m_capacity{ max_size }
+		{
+			m_buffer.resize(max_size);
+		}
+
+
+		// Called once to set the size of the internal vector.
+		void initialize(size_t max_size)
+		{
+			if (m_capacity > 0) return;
+
+			m_capacity = max_size;
+			m_buffer.resize(max_size);
+		}
+
+		// Write data to the current head position. Advances head after writing.
+		void write(const T& value);
+		void write(const T&& value);
+
+		// Get value from buffer at given index. Index is offset by current head index.
+		T& operator[](const size_t index);
+		const T& operator[](const size_t index) const;
+
+		// Erases all buffer values.
+		void clear();
+
+		// Checks size value.
+		bool isEmpty() const;
+
+		// Returns size value.
+		size_t size() const;
+
+		// Custom iterator.
+		struct Iterator
+		{
+		public:
+			Iterator(const RingBuffer<T>* parent, size_t index, size_t cycle) noexcept;
+
+			// Prefix increment.
+			Iterator& operator++() noexcept;
+
+			// Postfix increment.
+			Iterator operator++(int) noexcept;
+
+			// Inequality operator.		
+			bool operator!=(const Iterator& other) const noexcept;
+
+			// Get data from the slot.
+			T operator*() const noexcept;
+
+		private:
+			// Needed to retrieve values from outer class.
+			const RingBuffer<T>* m_parent;
+
+			// For a ring buffer, we need to store the current index and the index of the cycle/loop.
+			// The start and end are the same index in this situation, so the cycle index tells us if we've really reached the end or not.
+			struct Slot
+			{
+				Slot(size_t index, size_t cycle)
+					: m_index{ index }
+					, m_cycle{ cycle }
+				{	}
+
+				friend bool operator==(const Slot& lhs, const Slot& rhs)
+				{
+					return (lhs.m_index == rhs.m_index) && (lhs.m_cycle == rhs.m_cycle);
+				}
+
+				friend bool operator!=(const Slot& lhs, const Slot& rhs)
+				{
+					return !(lhs == rhs);
+				}
+
+				size_t m_index{ 0 };
+				size_t m_cycle{ 0 };
+			};
+
+			Slot m_slot{};
+		};
+
+		// Returns iterators to the start and end of the buffer.
+		Iterator begin() const noexcept;
+		Iterator end() const noexcept;
+
+	private:
+		// Increments head index. Wraps around to 0 when it is equal to capacity.
+		// Size increments as well, until it is also equal to capacity.
+		void AdvanceHead();
+
+		std::vector<T> m_buffer;
+		size_t m_head{ 0 };
+		size_t m_size{ 0 };
+		size_t m_capacity{ 0 };
+	};
+
+
+	template <typename T>
+	void RingBuffer<T>::write(const T& value)
+	{
+		m_buffer[m_head] = value;
+
+		AdvanceHead();
+	}
+
+
+	template <typename T>
+	void RingBuffer<T>::write(const T&& value)
+	{
+		m_buffer[m_head] = value;
+
+		AdvanceHead();
+	}
+
+
+	template <typename T>
+	T& RingBuffer<T>::operator[](const size_t index)
+	{
+		size_t v{ (m_head + index) % m_size };
+		return m_buffer[v];
+	}
+
+
+	template <typename T>
+	const T& RingBuffer<T>::operator[](const size_t index) const
+	{
+		size_t v{ (m_head + index) % m_size };
+		return m_buffer[v];
+	}
+
+	template <typename T>
+	void RingBuffer<T>::clear()
+	{
+		m_buffer.clear();
+		m_head = 0;
+		m_size = 0;
+	}
+
+
+	template <typename T>
+	bool RingBuffer<T>::isEmpty() const
+	{
+		return m_size == 0;
+	}
+
+
+	template <typename T>
+	size_t RingBuffer<T>::size() const
+	{
+		return m_size;
+	}
+
+
+	template <typename T>
+	typename RingBuffer<T>::Iterator RingBuffer<T>::begin() const noexcept
+	{
+		// If buffer is still being filled in, head index will equal size.
+		// Begin iter will be 0 index on starting cycle.
+		if (m_head == m_size) return Iterator{ this, 0, 0 };
+
+		// Otherwise, begin iter is current index on starting cycle.
+		return Iterator{ this, m_head, 0 };
+	}
+
+
+	template <typename T>
+	typename RingBuffer<T>::Iterator RingBuffer<T>::end() const noexcept
+	{
+		// If no elements added, then end iter is same as begin iter.
+		if (m_size == 0) return Iterator{ this, m_head, 0 };
+
+		// If buffer is still being filled in, head index will equal size.
+		// End iter will be 0 index on next cycle.
+		if (m_head == m_size) return Iterator{ this, 0, 1 };
+
+		// Otherwise, end iter is current index on next cycle.
+		return Iterator{ this, m_head, 1 };
+	}
+
+
+	template <typename T>
+	void RingBuffer<T>::AdvanceHead()
+	{
+		++m_head;
+
+		if (m_size != m_capacity)
+		{
+			++m_size;
+		}
+
+		if (m_head == m_capacity)
+		{
+			m_head = 0;
+		}
+	}
+
+
+	// Custom iterator.
+	template <typename T>
+	RingBuffer<T>::Iterator::Iterator(const RingBuffer<T>* parent, size_t index, size_t cycle) noexcept
+		: m_parent{ parent }
+		, m_slot{ index, cycle }
+	{	}
+
+
+	template <typename T>
+	typename RingBuffer<T>::Iterator& RingBuffer<T>::Iterator::operator++() noexcept
+	{
+		++m_slot.m_index;
+
+		if (m_slot.m_index == m_parent->m_size)
+		{
+			m_slot.m_index = 0;
+			++m_slot.m_cycle;
+		}
+
+		return *this;
+	}
+
+
+	template <typename T>
+	typename RingBuffer<T>::Iterator RingBuffer<T>::Iterator::operator++(int) noexcept
+	{
+		Iterator temp = *this;
+		++*this;
+		return temp;
+	}
+
+
+	template <typename T>
+	bool RingBuffer<T>::Iterator::operator!=(const Iterator& other) const noexcept
+	{
+		return m_slot != other.m_slot;
+	}
+
+
+	template <typename T>
+	T RingBuffer<T>::Iterator::operator*() const noexcept
+	{
+		return m_parent->m_buffer[m_slot.m_index];
+	}
+
+
+	template <typename TPriorityValue, typename TItemValue>
+	class PairedPriorityQueue
+	{
+	public:
+		PairedPriorityQueue() = default;
+
+		void Put(const TItemValue item, const TPriorityValue priority) { m_elements.emplace(priority, item); }
+		
+		TItemValue Get()
+		{
+			TItemValue top_item{ m_elements.top().second };
+			m_elements.pop();
+
+			return top_item;
+		}
+		
+		bool IsEmpty() { return m_elements.empty(); }
+
+	private:
+		using queue_element = std::pair<TPriorityValue, TItemValue>;
+		std::priority_queue<queue_element, std::vector<queue_element>, std::greater<queue_element>> m_elements;
+	};
 }

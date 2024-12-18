@@ -1,0 +1,8 @@
+2,4,	b = a % 8
+1,5,	b = b xor L5
+7,5,	c = a / 2^b
+4,5,	b = b xor c
+0,3,	a = a / 2^3
+1,6,	b = b xor L6
+5,5,	out = b % 8
+3,0		if a: p = 0
